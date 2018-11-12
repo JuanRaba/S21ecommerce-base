@@ -18,7 +18,7 @@ class BillingsController < ApplicationController
       :payer =>  {
         :payment_method =>  "paypal" },
       :redirect_urls => {
-        :return_url => "http://localhost:3000/payment/execute",
+        :return_url => "http://localhost:3000/billings/execute",
         :cancel_url => "http://localhost:3000/" },
       :transactions =>  [{
         :item_list => {
@@ -36,4 +36,19 @@ class BillingsController < ApplicationController
       ':('
     end
   end
+
+  def execute
+    #render json: params
+    payment = PayPal::SDK::REST::Payment.find(params[:paymentId])
+
+    if payment.execute( :payer_id => params[:PayerID] )
+      # Success Message
+      # Note that you'll need to `Payment.find` the payment again to access user info like shipping address
+      render plain: ":)"
+    else
+      render plain: ":("
+      #payment.error # Error Hash
+    end
+  end
+
 end
