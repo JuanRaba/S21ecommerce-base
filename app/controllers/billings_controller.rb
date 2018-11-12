@@ -1,4 +1,10 @@
 class BillingsController < ApplicationController
+  before_action :authenticate_user!
+  def index
+    @billings = current_user.billings
+  end
+
+
   def pre_pay
     orders = current_user.orders.where(payed: false)
     total = orders.pluck("price * quantity").sum()

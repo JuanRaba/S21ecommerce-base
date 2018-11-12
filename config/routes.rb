@@ -10,7 +10,7 @@ Rails.application.routes.draw do
   	end
   end
 
-  resources :billings, only: [] do
+  resources :billings, only: [:index] do
     collection do
       get 'pre_pay'
       get 'execute'
