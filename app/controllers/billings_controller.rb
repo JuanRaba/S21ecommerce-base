@@ -7,7 +7,7 @@ class BillingsController < ApplicationController
 
   def pre_pay
     orders = current_user.orders.cart
-    total = orders.pluck("price * quantity").sum()
+    total = orders.get_total
     items = orders.map do |order|
       item = {}
       item[:name] = order.product.name
