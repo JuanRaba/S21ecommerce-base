@@ -1,0 +1,171 @@
+semana 21 paypal
+
+Corriendo el proyecto
+database.yml development: database: cambia nombre a base de datos
+rails db:create migrate seed
+
+Creando la cuenta en PayPal
+deceloper.paypal.com
+
+Guardano las claves
+config/secrets.yml
+development:
+  paypal_client_id: <%= ENV["PAYPAL_CLIENT_ID"] %>
+  paypal_secret_id: <%= ENV["PAYPAL_SECRET_ID"] %>
+export VARIABLE=5;rails c; ENV('VARIABLE')
+en otro terminal no existe
+
+Cargando las variables automaticamente
+login shell(rvm) vs non-login
+~/.bash_profile     
+export PAYPAL_SECRET_ID=XXXX
+source ~/.bash_profile
+printenv PAYPAL_SECRET_ID
+
+Variables de entorno en Heroku
+heroku run rake db:migrate
++seed
+en produccion mejor usar claves distintas xq se comparten
+heroku config:set PAYPAL_CLIENT_ID=XXX
+heroku config:get PAYPAL_CLIENT_ID
+heroku run console
+
+Documentacion de PayPal
+https://github.com/paypal/PayPal-Ruby-SDK#create-payment
+
+El modelo de Billing
+rails g model Billing code payment_method amount:decimal{5-2} currency user:references
+t.decimal :amount, precision: 5, scale: 2
+precision xxxxx scale .xx => 999.99 el maximo
+
+Detalles del modelo y controller
+rails g migration addBillingToOrder billing:references
+belongs_to :billing, optional: true
+https://github.com/voormedia/rails-erd
+gem 'rails-erd', require: false, group: :development
+bundle
+sudo apt-get install graphviz
+bundle exec erd
+rails g controller billings
+
+preparacion del pago
+billing#pre_pay => paypal
+  resources :billings, only: [] do
+    collection do
+      get 'pre_pay'
+    end
+  end
+class BillingsController < ApplicationController
+  def pre_pay
+    
+  end
+  pre_pay_billing_index_path
+
+  <%= link_to 'Confirmar compra', pre_pay_billings_index_path, class: 'btn btn-success float-right'  %>
+
+
+obteniendo el total con pluck
+gem 'paypal-sdk-rest'
+bundle
+-
+pluck devuelve en arreglo, "price * quantity" lo pone en el SELECT "price * quantity"
+    orders = current_user.orders.where(payed: false)
+    total = orders.pluck("price * quantity").sum()
+    items = orders.map do |order|
+      item = {}
+      item[:name] = order.product.name
+      item[:sku] = order.id.to_s
+      item[:price] = order.price.to_s
+      item[:currency] = 'USD'
+      item[:quantity] = order.quantity
+      item
+    end
+map recoge el item ya q es lo q hay en la ultima linea
+
+Generanfo el hash para PayPal
+    # Build Payment object
+    @payment = PayPal::SDK::REST::Payment.new({
+      :intent =>  "sale",
+      :payer =>  {
+        :payment_method =>  "paypal" },
+      :redirect_urls => {
+        :return_url => "http://localhost:3000/billings/execute",
+        :cancel_url => "http://localhost:3000/" },
+      :transactions =>  [{
+        :item_list => {
+          :items => items 
+        },
+        :amount =>  {
+          :total =>  total,
+          :currency =>  "USD" },
+        :description =>  "Carro de compra" }]})
+
+Ingresando el pago en PayPal
+if @payment.create
+  render json: @payment.to_json
+else
+  ':('
+end
+rails g paypal:sdk:install
+config/paypal.yml
+  client_id: <%= ENV['PAYPAL_CLIENT_ID'] %>
+  client_secret: <%= ENV["PAYPAL_SECRET_ID"] %>
+
+  def execute
+    #render json: params
+    payment = PayPal::SDK::REST::Payment.find(params[:paymentId])
+
+    if payment.execute( :payer_id => params[:PayerID] )
+
+Guardando el pago en la base de datos
+añadir en execute
+amount = payment.transactions.first.amount.total
+
+      billing = Billing.create(
+        user: current_user,
+        code: payment.id,
+        payment_method: 'paypal',
+        amount: amount,
+        currency: 'USD'
+        )
+      orders = current_user.orders.where(payed: false)
+      orders.update_all(payed: true, billing_id: billing.id)
+
+      redirect_to root_path, notice: "La compra se realizó con exito"
+
+listando pagos guardados
+billing.index
+@billings = current_user.billings
+<div class="container">
+<% @billings.each do |billing| %>
+  <p> <%= billing.amount %> </p>
+  <hr>
+  <% billing.orders.each do |order| %>
+    <%= order.product.name %>
+  <% end %>
+<% end %>
+</div>
+
+Refactoring con scope
+scope :cart, -> {where(payed: false)}
+devuelve coleccion
+
+Refactoring con metodo de clase
+precio
+  def self.get_total
+    pluck("price * quantity").sum()
+  end
+metodo de clase aporta un valor
+
+Refactoring con metodo privado
+  private
+  def get_items_hash(orders)
+    items = orders.map do |order|
+blabla patron presentador
+
+URL para produccion
+# Build Payment object
+    @payment 
+tiene una url a localhost:3000
+cambiar a url
+execute_billings_url
